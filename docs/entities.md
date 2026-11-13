@@ -111,11 +111,39 @@ Rules:
 
 ## 9. Payslip
 
-Stores an employee's payroll breakdown, including earnings, deductions, and net salary.
+- id (INT, PK)
+- payroll_run_id (INT, FK → PayrollRun.id)
+- employee_id (INT, FK → Employee.id)
+- base_salary (DECIMAL(10,2))
+- salary_type (ENUM: monthly, daily)
+- days_worked (DECIMAL(5,2))
+- days_absent (DECIMAL(5,2))
+- paid_leave_days (DECIMAL(5,2))
+- unpaid_leave_days (DECIMAL(5,2))
+- late_minutes (INT)
+- gross_pay (DECIMAL(10,2))
+- total_deductions (DECIMAL(10,2))
+- net_pay (DECIMAL(10,2))
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+- Unique: (payroll_run_id, employee_id)
+
+Notes:
+- Snapshot: salary, attendance, and leave values are copied at processing time, so later changes never alter past payslips.
+- Money totals are stored, not calculated: payslips are locked records, and recalculating them later could give different results if rules change.
 
 ## 10. PayrollDeduction
 
-Stores deductions applied during payroll, including SSS, PhilHealth, Pag-IBIG, and withholding tax.
+- id (INT, PK)
+- payslip_id (INT, FK → Payslip.id)
+- deduction_type (ENUM: sss, philhealth, pagibig, withholding_tax, late, absent)
+- amount (DECIMAL(10,2))
+- created_at (TIMESTAMP)
+- Unique: (payslip_id, deduction_type)
+
+Notes:
+- One row per deduction type per payslip, so each payslip's breakdown can be shown line by line.
+- Sum of amounts must equal Payslip.total_deductions.
 
 ## 11. WorkSchedule
 
@@ -151,3 +179,9 @@ Stores deductions applied during payroll, including SSS, PhilHealth, Pag-IBIG, a
 - PayrollRun
 - Payslip
 - PayrollDeduction
+
+## Future Improvements
+
+- PayrollAdjustment entity: corrections to completed payrolls, applied as a line in the next run.
+- EmployeeSchedule link table: keep schedule history, since past periods currently use the current schedule.
+- Overtime, holiday pay, allowances, and 13th month pay.
