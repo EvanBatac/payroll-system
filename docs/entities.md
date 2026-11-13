@@ -40,6 +40,9 @@
 - created_at (TIMESTAMP)
 - updated_at (TIMESTAMP)
 
+Notes:
+- Login uses `Employee.email` via `employee_id`. The email is stored only in the Employee table to avoid duplication.
+
 ## 4. Attendance
 
 - id (INT, PK)
@@ -129,8 +132,10 @@ Rules:
 - Unique: (payroll_run_id, employee_id)
 
 Notes:
+
 - Snapshot: salary, attendance, and leave values are copied at processing time, so later changes never alter past payslips.
 - Money totals are stored, not calculated: payslips are locked records, and recalculating them later could give different results if rules change.
+- Absences are deducted when calculating gross_pay. The absent deduction must not be applied again through PayrollDeduction. Late deductions are applied separately after gross_pay.
 
 ## 10. PayrollDeduction
 
@@ -160,22 +165,19 @@ Notes:
 
 ## Build Order
 
-### Phase 1: Core Employee Management
-
-- Employee
+### Phase 1: Core Employee Management and Scheduling
 - Department
+- WorkSchedule
+- Employee
 - User
 - Attendance
 
-### Phase 2: Leave and Scheduling
-
+### Phase 2: Leave Management
 - LeaveType
 - LeaveRequest
 - LeaveBalance
-- WorkSchedule
 
 ### Phase 3: Payroll
-
 - PayrollRun
 - Payslip
 - PayrollDeduction
