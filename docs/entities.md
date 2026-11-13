@@ -91,7 +91,23 @@
 
 ## 8. PayrollRun
 
-Stores each payroll processing period and its overall processing status.
+- id (INT, PK)
+- period_start (DATE)
+- period_end (DATE)
+- pay_date (DATE)
+- status (ENUM: draft, processing, completed, failed)
+- processed_by (INT, FK → User.id, nullable)
+- processed_at (DATETIME, nullable)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+- Unique: (period_start, period_end)
+
+Rules:
+
+- Payroll is semi-monthly: 1st–15th and 16th–last day of the month.
+- SSS, PhilHealth, and Pag-IBIG are computed monthly and split across both runs. The 1st run takes half (rounded); the 2nd run takes the remainder (monthly total minus what was already deducted), so the total always matches.
+- Completed payroll runs and their payslips are locked and cannot be edited.
+- Corrections to completed payroll are handled through a separate adjustment process (see Future Improvements).
 
 ## 9. Payslip
 
