@@ -78,7 +78,15 @@
 
 ## 7. LeaveBalance
 
-Tracks how many leave days an employee has available and how many they have used.
+- id (INT, PK)
+- employee_id (INT, FK → Employee.id)
+- leave_type_id (INT, FK → LeaveType.id)
+- year (YEAR)
+- allocated_days (DECIMAL(5,2))
+- used_days (DECIMAL(5,2), default: 0)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+- Unique: (employee_id, leave_type_id, year)
 
 ## 8. PayrollRun
 
