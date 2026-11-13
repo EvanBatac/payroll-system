@@ -51,13 +51,30 @@
 - updated_at (TIMESTAMP)
 - Unique: (employee_id, attendance_date)
 
-## 5. LeaveRequest
+## 5. LeaveType
 
-Stores leave applications submitted by employees, including their approval status.
+- id (INT, PK)
+- name (VARCHAR(100), unique)
+- description (TEXT, nullable)
+- default_days (DECIMAL(5,2))
+- is_paid (BOOLEAN)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
-## 6. LeaveType
+## 6. LeaveRequest
 
-Stores the different types of leave available to employees, such as vacation leave and sick leave.
+- id (INT, PK)
+- employee_id (INT, FK → Employee.id)
+- leave_type_id (INT, FK → LeaveType.id)
+- start_date (DATE)
+- end_date (DATE)
+- total_days (DECIMAL(5,2), calculated on submission)
+- reason (TEXT)
+- status (ENUM: pending, approved, rejected)
+- reviewed_by (INT, FK → User.id, nullable)
+- reviewed_at (DATETIME, nullable)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
 ## 7. LeaveBalance
 
