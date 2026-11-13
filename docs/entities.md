@@ -31,7 +31,13 @@
 
 ## 3. User
 
-Stores login credentials and authentication information for employees and administrators.
+- id (INT, PK)
+- employee_id (INT, FK → Employee.id, unique)
+- password_hash (VARCHAR(255))
+- role (ENUM: employee, hr, admin)
+- is_active (BOOLEAN, default: true)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
 ## 4. Attendance
 
