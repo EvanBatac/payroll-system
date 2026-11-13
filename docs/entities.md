@@ -41,7 +41,15 @@
 
 ## 4. Attendance
 
-Stores employee clock-in and clock-out records.
+- id (INT, PK)
+- employee_id (INT, FK → Employee.id)
+- attendance_date (DATE)
+- clock_in (DATETIME, nullable)
+- clock_out (DATETIME, nullable)
+- status (ENUM: present, late, absent, half_day)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
+- Unique: (employee_id, attendance_date)
 
 ## 5. LeaveRequest
 
