@@ -18,6 +18,7 @@
 - pagibig_number (VARCHAR(30), nullable, unique)
 - tin (VARCHAR(30), nullable, unique)
 - department_id (INT, FK → Department.id)
+- work_schedule_id (INT, FK → WorkSchedule.id, NOT NULL)
 - created_at (TIMESTAMP)
 - updated_at (TIMESTAMP)
 
@@ -102,7 +103,14 @@ Stores deductions applied during payroll, including SSS, PhilHealth, Pag-IBIG, a
 
 ## 11. WorkSchedule
 
-Stores employee work schedules, including expected working hours and workdays.
+- id (INT, PK)
+- name (VARCHAR(100), unique)
+- work_days (JSON, example: ["Mon", "Tue", "Wed", "Thu", "Fri"])
+- start_time (TIME)
+- end_time (TIME)
+- grace_period_minutes (INT)
+- created_at (TIMESTAMP)
+- updated_at (TIMESTAMP)
 
 ---
 
