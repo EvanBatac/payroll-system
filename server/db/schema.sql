@@ -1,10 +1,13 @@
+DROP TABLE IF EXISTS payroll_run;
+DROP TYPE IF EXISTS payroll_status;
+DROP TABLE IF EXISTS leave_balance;
 DROP TABLE IF EXISTS leave_request;
 DROP TYPE IF EXISTS leave_status;
 DROP TABLE IF EXISTS leave_type;
 DROP TABLE IF EXISTS attendance;
 DROP TYPE IF EXISTS attendance_status;
 DROP TABLE IF EXISTS users;
-DROP TYPE IF EXISTS role_type;
+DROP TYPE IF EXISTS user_role;
 DROP TABLE IF EXISTS employee;
 DROP TYPE IF EXISTS employment_status;
 DROP TYPE IF EXISTS salary_type;
@@ -135,4 +138,39 @@ CREATE TABLE leave_request (
     CHECK (total_days > 0)
 );
 
+CREATE TABLE leave_balance (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employee_id INT NOT NULL REFERENCES employee(id) ON DELETE RESTRICT,
+    leave_type_id INT NOT NULL REFERENCES leave_type(id) ON DELETE RESTRICT,
+    year SMALLINT NOT NULL,
+    allocated_days NUMERIC(5,2) NOT NULL DEFAULT 0,
+    used_days NUMERIC(5,2) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (allocated_days >= 0),
+    CHECK (used_days >= 0),
+    UNIQUE (employee_id, leave_type_id, year)
+);
 
+CREATE TYPE payroll_status AS ENUM (
+    'draft',
+    'processing',
+    'completed',
+    'failed'
+);
+
+CREATE TABLE payroll_run (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    pay_date DATE NOT NULL,
+    status payroll_status NOT NULL DEFAULT 'draft',
+    processed_by INT REFERENCES users(id) ON DELETE RESTRICT,
+    processed_at TIMESTAMPTZ,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_payroll_period
+        CHECK (period_end >= period_start),
+    CONSTRAINT uq_payroll_period
+        UNIQUE (period_start, period_end)
+);
