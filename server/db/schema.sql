@@ -1,3 +1,6 @@
+DROP TABLE IF EXISTS leave_request;
+DROP TYPE IF EXISTS leave_status;
+DROP TABLE IF EXISTS leave_type;
 DROP TABLE IF EXISTS attendance;
 DROP TYPE IF EXISTS attendance_status;
 DROP TABLE IF EXISTS users;
@@ -98,3 +101,38 @@ CREATE TABLE attendance (
         OR clock_out >= clock_in
     )
 );
+
+CREATE TABLE leave_type (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    default_days NUMERIC(5,2) NOT NULL DEFAULT 0,
+    is_paid BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TYPE leave_status AS ENUM (
+    'pending',
+    'approved',
+    'rejected'
+);
+
+CREATE TABLE leave_request (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employee_id INT NOT NULL REFERENCES employee(id) ON DELETE RESTRICT,
+    leave_type_id INT NOT NULL REFERENCES leave_type(id) ON DELETE RESTRICT,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    total_days NUMERIC(5,2) NOT NULL,
+    reason TEXT,
+    status leave_status NOT NULL DEFAULT 'pending',
+    reviewed_by INT REFERENCES users(id) ON DELETE RESTRICT,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (end_date >= start_date),
+    CHECK (total_days > 0)
+);
+
+
