@@ -1,5 +1,7 @@
+DROP TABLE IF EXISTS attendance;
+DROP TYPE IF EXISTS attendance_status;
 DROP TABLE IF EXISTS users;
-DROP TYPE IF EXISTS user_role;
+DROP TYPE IF EXISTS role_type;
 DROP TABLE IF EXISTS employee;
 DROP TYPE IF EXISTS employment_status;
 DROP TYPE IF EXISTS salary_type;
@@ -71,4 +73,28 @@ CREATE TABLE users (
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TYPE attendance_status AS ENUM (
+    'present',
+    'late',
+    'absent',
+    'half_day'
+);
+
+CREATE TABLE attendance (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employee_id INT NOT NULL REFERENCES employee(id) ON DELETE RESTRICT,
+    attendance_date DATE NOT NULL,
+    clock_in TIMESTAMPTZ,
+    clock_out TIMESTAMPTZ,
+    status attendance_status NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (employee_id, attendance_date),
+    CHECK (
+        clock_out IS NULL
+        OR clock_in IS NULL
+        OR clock_out >= clock_in
+    )
 );
