@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS payslip;
 DROP TABLE IF EXISTS payroll_run;
 DROP TYPE IF EXISTS payroll_status;
 DROP TABLE IF EXISTS leave_balance;
@@ -173,4 +174,26 @@ CREATE TABLE payroll_run (
         CHECK (period_end >= period_start),
     CONSTRAINT uq_payroll_period
         UNIQUE (period_start, period_end)
+);
+
+CREATE TABLE payslip (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    payroll_run_id INT NOT NULL REFERENCES payroll_run(id) ON DELETE RESTRICT,
+    employee_id INT NOT NULL REFERENCES employee(id) ON DELETE RESTRICT,
+    base_salary NUMERIC(10,2) NOT NULL,
+    salary_type salary_type NOT NULL,
+    days_worked NUMERIC(5,2) NOT NULL DEFAULT 0,
+    days_absent NUMERIC(5,2) NOT NULL DEFAULT 0,
+    paid_leave_days NUMERIC(5,2) NOT NULL DEFAULT 0,
+    unpaid_leave_days NUMERIC(5,2) NOT NULL DEFAULT 0,
+    late_minutes INT NOT NULL DEFAULT 0,
+    gross_pay NUMERIC(10,2) NOT NULL,
+    total_deductions NUMERIC(10,2) NOT NULL,
+    net_pay NUMERIC(10,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (gross_pay >= 0),
+    CHECK (total_deductions >= 0),
+    CHECK (net_pay = gross_pay - total_deductions),
+    UNIQUE (payroll_run_id, employee_id)
 );
