@@ -187,3 +187,13 @@ Notes:
 - PayrollAdjustment entity: corrections to completed payrolls, applied as a line in the next run.
 - EmployeeSchedule link table: keep schedule history, since past periods currently use the current schedule.
 - Overtime, holiday pay, allowances, and 13th month pay.
+
+## Postgres Type Notes
+
+- DECIMAL(p,s) → NUMERIC(p,s)
+- DATETIME → TIMESTAMP
+- YEAR → SMALLINT
+- JSON → JSONB
+- ENUM → TEXT with a CHECK constraint
+- id (INT, PK) → INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+- BOOLEAN stays BOOLEAN; TIME and DATE stay the same
