@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS payroll_deduction;
+DROP TYPE IF EXISTS deduction_type;
 DROP TABLE IF EXISTS payslip;
 DROP TABLE IF EXISTS payroll_run;
 DROP TYPE IF EXISTS payroll_status;
@@ -196,4 +198,23 @@ CREATE TABLE payslip (
     CHECK (total_deductions >= 0),
     CHECK (net_pay = gross_pay - total_deductions),
     UNIQUE (payroll_run_id, employee_id)
+);
+
+CREATE TYPE deduction_type AS ENUM (
+    'sss',
+    'philhealth',
+    'pagibig',
+    'withholding_tax',
+    'late',
+    'absent'
+);
+
+CREATE TABLE payroll_deduction (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    payslip_id INT NOT NULL REFERENCES payslip(id) ON DELETE RESTRICT,
+    deduction_type deduction_type NOT NULL,
+    amount NUMERIC(10,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CHECK (amount >= 0),
+    UNIQUE (payslip_id, deduction_type)
 );
