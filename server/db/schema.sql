@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS users;
+DROP TYPE IF EXISTS user_role;
 DROP TABLE IF EXISTS employee;
 DROP TYPE IF EXISTS employment_status;
 DROP TYPE IF EXISTS salary_type;
@@ -55,3 +57,18 @@ CREATE TABLE employee (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TYPE user_role AS ENUM (
+    'employee',
+    'hr',
+    'admin'
+);
+
+CREATE TABLE users (
+    id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    employee_id INT NOT NULL UNIQUE REFERENCES employee(id) ON DELETE RESTRICT,
+    password_hash VARCHAR(255) NOT NULL,
+    role user_role NOT NULL DEFAULT 'employee',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
