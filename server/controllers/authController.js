@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import "dotenv/config";
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
+import { memo } from "react";
 
 export const login = async (req, res) => {
   try {
@@ -64,6 +65,35 @@ export const login = async (req, res) => {
     return res.status(200).json({
       token,
       user: { id: user.id, role: user.role, firstName: user.first_name },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+export const getMe = async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, role FROM users WHERE id = $1 AND is_active = true",
+      [req.user.id],
+    );
+
+    const user = result.rows[0];
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      user: {
+        id: user.id,
+        role: user.role,
+      },
     });
   } catch (error) {
     console.error(error);
