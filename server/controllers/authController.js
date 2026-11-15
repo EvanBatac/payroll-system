@@ -1,3 +1,5 @@
+import jwt from "jsonwebtoken";
+import "dotenv/config";
 import pool from "../config/db.js";
 import bcrypt from "bcrypt";
 
@@ -5,11 +7,19 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body ?? {};
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string") {
+      return res.status(400).json({
+        message: "Email and password must be strings",
+      });
+    }
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) {
       return res.status(400).json({
         message: "Email and password are required",
       });
     }
+
     const userResult = await pool.query(
       `SELECT users.id, 
               users.password_hash, 
@@ -19,8 +29,8 @@ export const login = async (req, res) => {
               FROM users 
               INNER JOIN employee
               ON users.employee_id = employee.id
-              WHERE employee.email = $1`,
-      [email],
+              WHERE LOWER(employee.email) = $1`,
+      [normalizedEmail],
     );
 
     const user = userResult.rows[0];
@@ -45,11 +55,16 @@ export const login = async (req, res) => {
       });
     }
 
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || "1d" },
+    );
+
     return res.status(200).json({
-      message: "password ok",
-      firstName: user.first_name,
+      token,
+      user: { id: user.id, role: user.role, firstName: user.first_name },
     });
-    
   } catch (error) {
     console.error(error);
     res.status(500).json({
