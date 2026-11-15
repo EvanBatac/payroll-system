@@ -73,3 +73,33 @@ export const updateDepartment = async (req, res) => {
     throw error;
   }
 };
+
+export const deleteDepartment = async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const departmentResult = await pool.query(
+      "DELETE FROM department WHERE id = $1",
+      [id],
+    );
+
+    if (departmentResult.rowCount === 0) {
+      return res.status(404).json({
+        message: "Department not found",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Department deleted",
+    });
+  } catch (error) {
+    if (error.code === "23503") {
+      return res
+        .status(409)
+        .json({
+          message: "Department still has employees and cannot be deleted",
+        });
+    }
+    throw error;
+  }
+};
