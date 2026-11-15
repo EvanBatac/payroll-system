@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import "dotenv/config";
 import pool from "./config/db.js";
+import authRoutes from "./routes/authRoutes.js"
 
 const app = express();
 
@@ -29,6 +30,8 @@ app.get("/api/health", async (req, res) => {
     });
   }
 });
+
+app.use("/api/auth", authRoutes);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
