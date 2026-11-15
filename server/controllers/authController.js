@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import bcrypt from "bcrypt";
 
 export const login = async (req, res) => {
   try {
@@ -30,10 +31,25 @@ export const login = async (req, res) => {
       });
     }
 
+    const isMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (!isMatch) {
+      return res.status(401).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({
+        message: "Account is disabled",
+      });
+    }
+
     return res.status(200).json({
-      message: "user found",
+      message: "password ok",
       firstName: user.first_name,
     });
+    
   } catch (error) {
     console.error(error);
     res.status(500).json({
