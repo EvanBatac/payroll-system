@@ -100,11 +100,9 @@ export const createEmployee = async (req, res) => {
   }
 
   if (!isPositiveInt(department_id) || !isPositiveInt(work_schedule_id)) {
-    return res
-      .status(400)
-      .json({
-        message: "department_id and work_schedule_id must be whole numbers",
-      });
+    return res.status(400).json({
+      message: "department_id and work_schedule_id must be whole numbers",
+    });
   }
 
   // 4. Insert
@@ -150,22 +148,65 @@ export const createEmployee = async (req, res) => {
           .status(409)
           .json({ message: "Employee number already exists" });
       }
-      return res
-        .status(409)
-        .json({
-          message: "A government ID number is already used by another employee",
-        });
+      return res.status(409).json({
+        message: "A government ID number is already used by another employee",
+      });
     }
     if (error.code === "23503") {
-      return res
-        .status(400)
-        .json({
-          message: "Selected department or work schedule does not exist",
-        });
+      return res.status(400).json({
+        message: "Selected department or work schedule does not exist",
+      });
     }
     if (error.code === "22007" || error.code === "22008") {
       return res.status(400).json({ message: "hire_date is not a valid date" });
     }
     throw error;
   }
+};
+
+export const getEmployeeById = async (req, res) => {
+  const id = req.params.id;
+
+  if (!/^\d+$/.test(String(id)) || Number(id) < 1) {
+    return res.status(400).json({ message: "Invalid employee id" });
+  }
+  const employeeResult = await pool.query(
+    `SELECT e.id,
+            e.employee_number,
+            e.first_name,
+            e.last_name,
+            e.email,
+            e.position,
+            to_char(e.hire_date, 'YYYY-MM-DD') AS hire_date,
+            e.employment_status,
+            e.phone, 
+            e.base_salary,
+            e.salary_type, 
+            e.sss_number, 
+            e.philhealth_number, 
+            e.pagibig_number, 
+            e.tin, e.department_id,
+            e.work_schedule_id,
+            d.name AS department_name,
+            ws.name AS schedule_name 
+            FROM employee e
+            INNER JOIN department d
+                ON e.department_id = d.id
+            INNER JOIN work_schedule ws
+                ON e.work_schedule_id = ws.id
+            WHERE e.id = $1`,
+    [id],
+  );
+
+  const employee = employeeResult.rows[0];
+
+  if (!employee) {
+    return res.status(404).json({
+      message: "Employee not found",
+    });
+  }
+
+  return res.status(200).json({
+    employee,
+  });
 };
