@@ -5,10 +5,12 @@ import {
   getEmployees,
   createEmployee,
   getEmployeeById,
+  updateEmployee,
 } from "../controllers/employeeController.js";
 const router = express.Router();
 
 router.get("/", authenticate, authorize("hr", "admin"), getEmployees);
 router.post("/", authenticate, authorize("hr", "admin"), createEmployee);
 router.get("/:id", authenticate, authorize("hr", "admin"), getEmployeeById);
+router.patch("/:id", authenticate, authorize("hr", "admin"), updateEmployee);
 export default router;

@@ -210,3 +210,166 @@ export const getEmployeeById = async (req, res) => {
     employee,
   });
 };
+
+export const updateEmployee = async (req, res) => {
+  const  id  = req.params.id;
+
+  if (!/^\d+$/.test(id) || Number(id) < 1) {
+    return res.status(400).json({ message: "Invalid employee id" });
+  }
+
+  const body = req.body ?? {};
+  const updates = [];
+  const values = [];
+
+  const add = (column, value) => {
+    values.push(value);
+    updates.push(`${column} = $${values.length}`);
+  };
+
+  // Required text columns: if sent, they must be valid
+  const textFields = {
+    employee_number: 50,
+    first_name: 100,
+    last_name: 100,
+    email: 255,
+    phone: 20,
+    position: 100,
+  };
+
+  for (const [field, maxLength] of Object.entries(textFields)) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (
+      typeof value !== "string" ||
+      !value.trim() ||
+      value.trim().length > maxLength
+    ) {
+      return res.status(400).json({
+        message: `${field} must be non-empty text up to ${maxLength} characters`,
+      });
+    }
+    add(field, field === "email" ? value.trim().toLowerCase() : value.trim());
+  }
+
+  // Optional government IDs: null or "" clears the value
+  for (const field of [
+    "sss_number",
+    "philhealth_number",
+    "pagibig_number",
+    "tin",
+  ]) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (value === null || value === "") {
+      add(field, null);
+      continue;
+    }
+    if (typeof value !== "string" || value.trim().length > 30) {
+      return res
+        .status(400)
+        .json({ message: `${field} must be text up to 30 characters` });
+    }
+    add(field, value.trim());
+  }
+
+  if (body.hire_date !== undefined) {
+    if (
+      typeof body.hire_date !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(body.hire_date)
+    ) {
+      return res.status(400).json({ message: "hire_date must be YYYY-MM-DD" });
+    }
+    add("hire_date", body.hire_date);
+  }
+
+  if (body.base_salary !== undefined) {
+    const salary = Number(body.base_salary);
+    if (!Number.isFinite(salary) || salary <= 0 || salary >= 100000000) {
+      return res
+        .status(400)
+        .json({ message: "base_salary must be a number greater than 0" });
+    }
+    add("base_salary", salary);
+  }
+
+  if (body.salary_type !== undefined) {
+    if (!["monthly", "daily"].includes(body.salary_type)) {
+      return res
+        .status(400)
+        .json({ message: "salary_type must be monthly or daily" });
+    }
+    add("salary_type", body.salary_type);
+  }
+
+  if (body.employment_status !== undefined) {
+    if (!["active", "inactive", "resigned"].includes(body.employment_status)) {
+      return res.status(400).json({
+        message: "employment_status must be active, inactive, or resigned",
+      });
+    }
+    add("employment_status", body.employment_status);
+  }
+
+  for (const field of ["department_id", "work_schedule_id"]) {
+    if (body[field] === undefined) continue;
+    if (!isPositiveInt(body[field])) {
+      return res
+        .status(400)
+        .json({ message: `${field} must be a whole number` });
+    }
+    add(field, Number(body[field]));
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ message: "No fields to update" });
+  }
+
+  values.push(Number(id));
+
+  try {
+    const employeeResult = await pool.query(
+      `UPDATE employee
+       SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $${values.length}
+       RETURNING id, employee_number, first_name, last_name, email, phone,
+                 position, to_char(hire_date, 'YYYY-MM-DD') AS hire_date,
+                 base_salary, salary_type, employment_status,
+                 department_id, work_schedule_id`,
+      values,
+    );
+
+    if (employeeResult.rowCount === 0) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+
+    return res.status(200).json({ employee: employeeResult.rows[0] });
+  } catch (error) {
+    if (error.code === "23505") {
+      if (error.constraint === "employee_email_key") {
+        return res.status(409).json({ message: "Email already exists" });
+      }
+      if (error.constraint === "employee_employee_number_key") {
+        return res
+          .status(409)
+          .json({ message: "Employee number already exists" });
+      }
+      return res
+        .status(409)
+        .json({
+          message: "A government ID number is already used by another employee",
+        });
+    }
+    if (error.code === "23503") {
+      return res
+        .status(400)
+        .json({
+          message: "Selected department or work schedule does not exist",
+        });
+    }
+    if (error.code === "22007" || error.code === "22008") {
+      return res.status(400).json({ message: "hire_date is not a valid date" });
+    }
+    throw error;
+  }
+};
