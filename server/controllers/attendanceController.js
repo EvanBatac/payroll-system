@@ -1,4 +1,5 @@
 import pool from "../config/db.js";
+import { getEmployeeIdByUserId } from "../helpers/employeeHelper.js";
 
 export const clockIn = async (req, res) => {
   const scheduleResult = await pool.query(
@@ -67,22 +68,13 @@ export const clockIn = async (req, res) => {
 };
 
 export const clockOut = async (req, res) => {
-  const employeeResult = await pool.query(
-    `SELECT e.id AS employee_id
-     FROM employee e
-     INNER JOIN users u
-        ON u.employee_id = e.id
-     WHERE u.id = $1`,
-    [req.user.id],
-  );
+  const employeeId = await getEmployeeIdByUserId(req.user.id);
 
-  if (employeeResult.rowCount === 0) {
+  if (!employeeId) {
     return res.status(404).json({
       message: "Employee record not found",
     });
   }
-
-  const employeeId = employeeResult.rows[0].employee_id;
 
   const attendanceResult = await pool.query(
     `UPDATE attendance
@@ -128,21 +120,13 @@ export const clockOut = async (req, res) => {
 export const getMyAttendance = async (req, res) => {
   let { month } = req.query;
 
-  const employeeResult = await pool.query(
-    `SELECT e.id AS employee_id
-     FROM employee e
-     INNER JOIN users u
-        ON u.employee_id = e.id
-     WHERE u.id = $1`,
-    [req.user.id],
-  );
+  const employeeId = await getEmployeeIdByUserId(req.user.id);
 
-  if (employeeResult.rowCount === 0) {
+  if (!employeeId) {
     return res.status(404).json({
       message: "Employee record not found",
     });
   }
-  const employeeId = employeeResult.rows[0].employee_id;
 
   if (month === undefined) {
     month = new Date()
