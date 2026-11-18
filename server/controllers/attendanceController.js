@@ -65,3 +65,62 @@ export const clockIn = async (req, res) => {
     throw error;
   }
 };
+
+export const clockOut = async (req, res) => {
+  const employeeResult = await pool.query(
+    `SELECT e.id AS employee_id
+     FROM employee e
+     INNER JOIN users u
+        ON u.employee_id = e.id
+     WHERE u.id = $1`,
+    [req.user.id],
+  );
+
+  if (employeeResult.rowCount === 0) {
+    return res.status(404).json({
+      message: "Employee record not found",
+    });
+  }
+
+  const employeeId = employeeResult.rows[0].employee_id;
+
+  const attendanceResult = await pool.query(
+    `UPDATE attendance
+     SET clock_out = NOW(),
+         updated_at = CURRENT_TIMESTAMP
+     WHERE employee_id = $1
+       AND attendance_date = (NOW() AT TIME ZONE 'Asia/Manila')::date
+       AND clock_out IS NULL
+     RETURNING id,
+               employee_id,
+               to_char(attendance_date, 'YYYY-MM-DD') AS attendance_date,
+               clock_in,
+               clock_out,
+               status`,
+    [employeeId],
+  );
+
+  if (attendanceResult.rowCount === 0) {
+    const existingAttendance = await pool.query(
+      `SELECT clock_out
+       FROM attendance
+       WHERE employee_id = $1
+         AND attendance_date = (NOW() AT TIME ZONE 'Asia/Manila')::date`,
+      [employeeId],
+    );
+
+    if (existingAttendance.rowCount === 0) {
+      return res.status(400).json({
+        message: "You have not clocked in today",
+      });
+    }
+
+    return res.status(409).json({
+      message: "You already clocked out today",
+    });
+  }
+
+  return res.status(200).json({
+    attendance: attendanceResult.rows[0],
+  });
+};
