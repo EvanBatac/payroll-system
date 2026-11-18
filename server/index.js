@@ -8,6 +8,7 @@ import departmentRoutes from "./routes/departmentRoutes.js";
 import employeeRoutes from "./routes/employeeRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import workScheduleRoutes from "./routes/workScheduleRoutes.js";
+import attendanceRoutes from "./routes/attendanceRoutes.js";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use("/api/departments", departmentRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/work-schedules", workScheduleRoutes);
+app.use("/api/attendance", attendanceRoutes);
 
 app.use(errorHandler);
 
