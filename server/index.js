@@ -11,6 +11,7 @@ import workScheduleRoutes from "./routes/workScheduleRoutes.js";
 import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveTypeRoutes from "./routes/leaveTypeRoutes.js";
 import leaveBalanceRoutes from "./routes/leaveBalanceRoutes.js";
+import leaveRequestRoutes from "./routes/leaveRequestRoutes.js";
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/work-schedules", workScheduleRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave-types", leaveTypeRoutes);
 app.use("/api/leave-balances", leaveBalanceRoutes);
+app.use("/api/leave-requests", leaveRequestRoutes);
 
 app.use(errorHandler);
 
