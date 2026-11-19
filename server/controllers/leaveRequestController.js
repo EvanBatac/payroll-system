@@ -114,3 +114,68 @@ export const createLeaveRequest = async (req, res) => {
     throw error;
   }
 };
+
+export const getLeaveRequests = async (req, res) => {
+  const { status } = req.query;
+
+  const conditions = [];
+  const values = [];
+
+  // Employees can only see their own leave requests
+  if (req.user.role === "employee") {
+    const employeeId = await getEmployeeIdByUserId(req.user.id);
+
+    if (!employeeId) {
+      return res.status(404).json({
+        message: "Employee record not found",
+      });
+    }
+
+    values.push(employeeId);
+    conditions.push(`lr.employee_id = $${values.length}`);
+  }
+
+  // Optional status filter
+  if (status !== undefined) {
+    if (!["pending", "approved", "rejected"].includes(status)) {
+      return res.status(400).json({
+        message: "status must be pending, approved, or rejected",
+      });
+    }
+
+    values.push(status);
+    conditions.push(`lr.status = $${values.length}::leave_status`);
+  }
+
+  // Build WHERE clause
+  const where = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+
+  // Retrieve leave requests
+  const leaveRequestResult = await pool.query(
+    `SELECT lr.id,
+            lr.employee_id,
+            e.first_name,
+            e.last_name,
+            lt.name AS leave_type,
+            to_char(lr.start_date, 'YYYY-MM-DD') AS start_date,
+            to_char(lr.end_date, 'YYYY-MM-DD') AS end_date,
+            lr.total_days,
+            lr.reason,
+            lr.status,
+            lr.created_at
+     FROM leave_request lr
+     INNER JOIN employee e
+        ON lr.employee_id = e.id
+     INNER JOIN leave_type lt
+        ON lr.leave_type_id = lt.id
+     ${where}
+     ORDER BY lr.created_at DESC`,
+    values,
+  );
+
+  return res.status(200).json({
+    leaveRequests: leaveRequestResult.rows,
+  });
+};
