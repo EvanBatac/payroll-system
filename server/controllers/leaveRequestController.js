@@ -179,3 +179,175 @@ export const getLeaveRequests = async (req, res) => {
     leaveRequests: leaveRequestResult.rows,
   });
 };
+
+export const reviewLeaveRequest = async (req, res) => {
+  const { decision } = req.body ?? {};
+  const { id } = req.params;
+
+  // Validate decision
+  if (!["approved", "rejected"].includes(decision)) {
+    return res.status(400).json({
+      message: "decision must be approved or rejected",
+    });
+  }
+
+  // Validate request ID
+  if (!/^[1-9]\d*$/.test(id)) {
+    return res.status(400).json({
+      message: "Invalid leave request ID",
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1. Find and lock the leave request
+    const requestResult = await client.query(
+      `SELECT lr.id,
+              lr.employee_id,
+              lr.leave_type_id,
+              lr.total_days,
+              EXTRACT(YEAR FROM lr.start_date)::int AS leave_year,
+              lr.status,
+              lt.is_paid
+       FROM leave_request lr
+       INNER JOIN leave_type lt
+          ON lr.leave_type_id = lt.id
+       WHERE lr.id = $1
+       FOR UPDATE OF lr`,
+      [id],
+    );
+
+    const leaveRequest = requestResult.rows[0];
+
+    if (!leaveRequest) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        message: "Leave request not found",
+      });
+    }
+
+    // 2. Check whether the request is still pending
+    if (leaveRequest.status !== "pending") {
+      await client.query("ROLLBACK");
+
+      return res.status(409).json({
+        message: "Leave request was already reviewed",
+      });
+    }
+
+    // 3. Find the reviewer's employee ID
+    const reviewerResult = await client.query(
+      `SELECT employee_id
+       FROM users
+       WHERE id = $1`,
+      [req.user.id],
+    );
+
+    const reviewerEmployeeId = reviewerResult.rows[0]?.employee_id;
+
+    if (!reviewerEmployeeId) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        message: "Employee record not found",
+      });
+    }
+
+    // 4. Prevent reviewing your own leave request
+    if (leaveRequest.employee_id === reviewerEmployeeId) {
+      await client.query("ROLLBACK");
+
+      return res.status(403).json({
+        message: "You cannot review your own leave request",
+      });
+    }
+
+    // 5. Update leave balance only for approved paid leave
+    if (decision === "approved" && leaveRequest.is_paid) {
+      // Create balance if it doesn't exist
+      await client.query(
+        `INSERT INTO leave_balance (
+           employee_id,
+           leave_type_id,
+           year,
+           allocated_days
+         )
+         SELECT $1, id, $3::smallint, default_days
+         FROM leave_type
+         WHERE id = $2
+         ON CONFLICT (employee_id, leave_type_id, year)
+         DO NOTHING`,
+        [
+          leaveRequest.employee_id,
+          leaveRequest.leave_type_id,
+          leaveRequest.leave_year,
+        ],
+      );
+
+      // Add used days, provided the employee has enough balance
+      const balanceResult = await client.query(
+        `UPDATE leave_balance
+         SET used_days = used_days + $1,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE employee_id = $2
+           AND leave_type_id = $3
+           AND year = $4
+           AND used_days + $1 <= allocated_days
+         RETURNING id`,
+        [
+          leaveRequest.total_days,
+          leaveRequest.employee_id,
+          leaveRequest.leave_type_id,
+          leaveRequest.leave_year,
+        ],
+      );
+
+      if (balanceResult.rowCount === 0) {
+        await client.query("ROLLBACK");
+
+        return res.status(409).json({
+          message: "Not enough leave balance",
+        });
+      }
+    }
+
+    // 6. Update the leave request
+    const updatedRequestResult = await client.query(
+      `UPDATE leave_request
+       SET status = $1::leave_status,
+           reviewed_by = $2,
+           reviewed_at = NOW(),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $3
+       RETURNING id,
+                 employee_id,
+                 leave_type_id,
+                 to_char(start_date, 'YYYY-MM-DD') AS start_date,
+                 to_char(end_date, 'YYYY-MM-DD') AS end_date,
+                 total_days,
+                 reason,
+                 status,
+                 reviewed_by,
+                 reviewed_at,
+                 created_at,
+                 updated_at`,
+      [decision, req.user.id, leaveRequest.id],
+    );
+
+    // 7. Save transaction
+    await client.query("COMMIT");
+
+    return res.status(200).json({
+      leaveRequest: updatedRequestResult.rows[0],
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
