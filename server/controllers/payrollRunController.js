@@ -1,6 +1,7 @@
 import pool from "../config/db.js";
 import { isRealDate } from "../utils/dates.js";
 import { isValidSemiMonthlyPeriod } from "../utils/payrollPeriod.js";
+import { buildPayslips } from "../services/payrollService.js";
 
 export const createPayrollRun = async (req, res) => {
   const { period_start, period_end, pay_date } = req.body ?? {};
@@ -52,4 +53,47 @@ export const createPayrollRun = async (req, res) => {
     }
     throw error;
   }
+};
+
+export const previewPayrollRun = async (req, res) => {
+  const { id } = req.params;
+
+  if (!/^[1-9]\d*$/.test(id)) {
+    return res.status(400).json({ message: "Invalid payroll run id" });
+  }
+
+  const runResult = await pool.query(
+    `SELECT id, status,
+            to_char(period_start, 'YYYY-MM-DD') AS period_start,
+            to_char(period_end, 'YYYY-MM-DD') AS period_end
+     FROM payroll_run
+     WHERE id = $1`,
+    [id],
+  );
+
+  const run = runResult.rows[0];
+
+  if (!run) {
+    return res.status(404).json({ message: "Payroll run not found" });
+  }
+
+  if (run.status !== "draft") {
+    return res
+      .status(409)
+      .json({ message: "Only draft payroll runs can be previewed" });
+  }
+
+  const payslips = await buildPayslips(pool, {
+    periodStart: run.period_start,
+    periodEnd: run.period_end,
+  });
+
+  return res.status(200).json({
+    payrollRun: {
+      id: run.id,
+      periodStart: run.period_start,
+      periodEnd: run.period_end,
+    },
+    payslips,
+  });
 };
