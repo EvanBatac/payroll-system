@@ -12,6 +12,7 @@ import attendanceRoutes from "./routes/attendanceRoutes.js";
 import leaveTypeRoutes from "./routes/leaveTypeRoutes.js";
 import leaveBalanceRoutes from "./routes/leaveBalanceRoutes.js";
 import leaveRequestRoutes from "./routes/leaveRequestRoutes.js";
+import payrollRunRoutes from "./routes/payrollRunRoutes.js";
 
 const app = express();
 
@@ -41,10 +42,10 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/leave-types", leaveTypeRoutes);
 app.use("/api/leave-balances", leaveBalanceRoutes);
 app.use("/api/leave-requests", leaveRequestRoutes);
+app.use("/api/payroll-runs", payrollRunRoutes);
 
 app.use(errorHandler);
 
 app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
 });
-

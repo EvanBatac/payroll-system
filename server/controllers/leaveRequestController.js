@@ -1,17 +1,6 @@
 import pool from "../config/db.js";
 import { countWorkDays } from "../utils/workDays.js";
-
-// true only for real calendar dates like "2026-12-07" (rejects "2026-02-30")
-const isRealDate = (text) => {
-  if (typeof text !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(text)) {
-    return false;
-  }
-  const parsed = new Date(`${text}T00:00:00Z`);
-  return (
-    !Number.isNaN(parsed.getTime()) &&
-    parsed.toISOString().slice(0, 10) === text
-  );
-};
+import { isRealDate } from "../utils/dates.js";
 
 export const createLeaveRequest = async (req, res) => {
   const { leave_type_id, start_date, end_date, reason = null } = req.body ?? {};
