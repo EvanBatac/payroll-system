@@ -2,6 +2,7 @@ import pool from "../config/db.js";
 import { isRealDate } from "../utils/dates.js";
 import { isValidSemiMonthlyPeriod } from "../utils/payrollPeriod.js";
 import { buildPayslips } from "../services/payrollService.js";
+import { round2 } from "../utils/deductions.js";
 
 export const createPayrollRun = async (req, res) => {
   const { period_start, period_end, pay_date } = req.body ?? {};
@@ -97,3 +98,142 @@ export const previewPayrollRun = async (req, res) => {
     payslips,
   });
 };
+
+export const generatePayrollRun = async (req, res) => {
+  const { id } = req.params;
+
+  if (!/^[1-9]\d*$/.test(id)) {
+    return res.status(400).json({
+      message: "Invalid payroll run id",
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const runResult = await client.query(
+      `SELECT id, status,
+          to_char(period_start, 'YYYY-MM-DD') AS period_start,
+          to_char(period_end, 'YYYY-MM-DD') AS period_end
+          FROM payroll_run
+          WHERE id = $1
+          FOR UPDATE`,
+      [id],
+    );
+
+    const run = runResult.rows[0];
+
+    if (!run) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        message: "Payroll run not found",
+      });
+    }
+
+    if (run.status !== "draft") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        message: "Only draft payroll runs can be generated",
+      });
+    }
+
+    await client.query(
+      `DELETE FROM payroll_deduction
+       WHERE payslip_id IN (
+       SELECT id FROM payslip
+       WHERE payroll_run_id = $1)`,
+      [id],
+    );
+
+    await client.query(
+      `DELETE FROM payslip
+       WHERE payroll_run_id = $1`,
+      [id],
+    );
+
+    const payslips = await buildPayslips(client, {
+      periodStart: run.period_start,
+      periodEnd: run.period_end,
+    });
+
+    for (const entry of payslips) {
+      const payslipResult = await client.query(
+        `INSERT INTO payslip (
+       payroll_run_id,
+       employee_id,
+       base_salary,
+       salary_type,
+       days_worked,
+       days_absent,
+       paid_leave_days,
+       unpaid_leave_days,
+       late_minutes,
+       gross_pay,
+       total_deductions,
+       net_pay
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+     RETURNING id`,
+        [
+          id,
+          entry.employeeId,
+          entry.baseSalary,
+          entry.salaryType,
+          entry.summary.daysWorked,
+          entry.summary.absentDays,
+          entry.summary.paidLeaveDays,
+          entry.summary.unpaidLeaveDays,
+          entry.summary.lateMinutes,
+          entry.payslip.grossPay,
+          entry.payslip.totalDeductions,
+          entry.payslip.netPay,
+        ],
+      );
+
+      const payslipId = payslipResult.rows[0].id;
+
+      for (const deduction of entry.payslip.deductions) {
+        await client.query(
+          `INSERT INTO payroll_deduction (
+           payslip_id,
+           deduction_type,
+           amount )
+           VALUES ($1, $2, $3)`,
+          [payslipId, deduction.type, deduction.amount],
+        );
+      }
+    }
+
+    const totalGross = round2(
+      payslips.reduce((sum, entry) => sum + entry.payslip.grossPay, 0),
+    );
+
+    const totalDeductions = round2(
+      payslips.reduce((sum, entry) => sum + entry.payslip.totalDeductions, 0),
+    );
+
+    const totalNet = round2(
+      payslips.reduce((sum, entry) => sum + entry.payslip.netPay, 0),
+    );
+
+    await client.query("COMMIT");
+
+    return res.status(200).json({
+      payrollRun: {
+        id: run.id,
+      },
+      payslipCount: payslips.length,
+      totalGross,
+      totalDeductions,
+      totalNet,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+

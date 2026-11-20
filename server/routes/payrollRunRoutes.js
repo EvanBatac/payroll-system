@@ -4,6 +4,7 @@ import authorize from "../middleware/authorize.js";
 import {
   createPayrollRun,
   previewPayrollRun,
+  generatePayrollRun,
 } from "../controllers/payrollRunController.js";
 
 const router = express.Router();
@@ -14,6 +15,12 @@ router.get(
   authenticate,
   authorize("hr", "admin"),
   previewPayrollRun,
+);
+router.post(
+  "/:id/generate",
+  authenticate,
+  authorize("hr", "admin"),
+  generatePayrollRun,
 );
 
 export default router;
