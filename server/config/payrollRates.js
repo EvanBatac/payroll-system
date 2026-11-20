@@ -7,6 +7,7 @@ export const PAYROLL_RATES = {
     lowRateMaxSalary: 1500,
     normalRate: 0.02,
   },
+  schedule: { workingDaysPerMonth: 22, hoursPerDay: 8 },
   // tax = base + rate * (taxable - over), using the last bracket where taxable >= over
   taxBrackets: [
     { over: 0, base: 0, rate: 0 },

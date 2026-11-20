@@ -1,6 +1,6 @@
 import { PAYROLL_RATES } from "../config/payrollRates.js";
 
-const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+export const round2 = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
 export function calculateSss(monthlySalary) {
