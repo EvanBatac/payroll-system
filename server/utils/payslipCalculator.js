@@ -13,9 +13,9 @@ export const computePayslip = ({
   if (half !== "first" && half !== "second") {
     throw new Error("half must be either 'first' or 'second'");
   }
-  
+
   const dailyRate =
-    salaryType === "monthly"
+    salaryType === "monthly" 
       ? baseSalary / PAYROLL_RATES.schedule.workingDaysPerMonth
       : baseSalary;
 
