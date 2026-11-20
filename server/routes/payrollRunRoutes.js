@@ -5,6 +5,7 @@ import {
   createPayrollRun,
   previewPayrollRun,
   generatePayrollRun,
+  finalizePayrollRun,
 } from "../controllers/payrollRunController.js";
 
 const router = express.Router();
@@ -21,6 +22,12 @@ router.post(
   authenticate,
   authorize("hr", "admin"),
   generatePayrollRun,
+);
+router.patch(
+  "/:id/finalize",
+  authenticate,
+  authorize("hr", "admin"),
+  finalizePayrollRun,
 );
 
 export default router;

@@ -237,3 +237,92 @@ export const generatePayrollRun = async (req, res) => {
   }
 };
 
+export const finalizePayrollRun = async (req, res) => {
+  const { id } = req.params;
+
+  if (!/^[1-9]\d*$/.test(id)) {
+    return res.status(400).json({
+      message: "Invalid payroll run id",
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    // 1. Find and lock the payroll run
+    const runResult = await client.query(
+      `SELECT id, status
+       FROM payroll_run
+       WHERE id = $1
+       FOR UPDATE`,
+      [id],
+    );
+
+    const run = runResult.rows[0];
+
+    if (!run) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        message: "Payroll run not found",
+      });
+    }
+
+    // 2. Only draft runs can be finalized
+    if (run.status !== "draft") {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        message: "Only draft payroll runs can be finalized",
+      });
+    }
+
+    // 3. Check whether payslips have been generated
+    const countResult = await client.query(
+      `SELECT COUNT(*)::int AS total
+       FROM payslip
+       WHERE payroll_run_id = $1`,
+      [id],
+    );
+
+    if (countResult.rows[0].total === 0) {
+      await client.query("ROLLBACK");
+      return res.status(409).json({
+        message: "Generate the payroll run before finalizing",
+      });
+    }
+
+    // 4. Mark the payroll run as completed
+    const updateResult = await client.query(
+      `UPDATE payroll_run
+       SET status = 'completed',
+           processed_by = $1,
+           processed_at = NOW(),
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING
+         id,
+         to_char(period_start, 'YYYY-MM-DD') AS period_start,
+         to_char(period_end, 'YYYY-MM-DD') AS period_end,
+         to_char(pay_date, 'YYYY-MM-DD') AS pay_date,
+         status,
+         processed_by,
+         processed_at`,
+      [req.user.id, id],
+    );
+
+    const payrollRun = updateResult.rows[0];
+
+    // 5. Commit transaction
+    await client.query("COMMIT");
+
+    return res.status(200).json({
+      payrollRun,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
