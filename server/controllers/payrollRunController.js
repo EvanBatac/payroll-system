@@ -326,3 +326,35 @@ export const finalizePayrollRun = async (req, res) => {
     client.release();
   }
 };
+
+export const getPayrollRuns = async (req, res) => {
+  const payrollRunResult = await pool.query(
+    `SELECT
+       pr.id,
+       to_char(pr.period_start, 'YYYY-MM-DD') AS period_start,
+       to_char(pr.period_end, 'YYYY-MM-DD') AS period_end,
+       to_char(pr.pay_date, 'YYYY-MM-DD') AS pay_date,
+       pr.status,
+       pr.processed_at,
+       COUNT(p.id)::int AS payslip_count,
+       COALESCE(SUM(p.gross_pay), 0) AS total_gross,
+       COALESCE(SUM(p.total_deductions), 0) AS total_deductions,
+       COALESCE(SUM(p.net_pay), 0) AS total_net
+     FROM payroll_run pr
+     LEFT JOIN payslip p
+       ON p.payroll_run_id = pr.id
+     GROUP BY pr.id
+     ORDER BY pr.period_start DESC`,
+  );
+
+  const payrollRuns = payrollRunResult.rows.map((row) => ({
+    ...row,
+    total_gross: Number(row.total_gross),
+    total_deductions: Number(row.total_deductions),
+    total_net: Number(row.total_net),
+  }));
+
+  return res.status(200).json({
+    payrollRuns,
+  });
+};

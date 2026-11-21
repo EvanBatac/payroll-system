@@ -6,6 +6,7 @@ import {
   previewPayrollRun,
   generatePayrollRun,
   finalizePayrollRun,
+  getPayrollRuns,
 } from "../controllers/payrollRunController.js";
 
 const router = express.Router();
@@ -29,5 +30,6 @@ router.patch(
   authorize("hr", "admin"),
   finalizePayrollRun,
 );
+router.get("/", authenticate, authorize("hr", "admin"), getPayrollRuns);
 
 export default router;
