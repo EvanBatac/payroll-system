@@ -116,3 +116,47 @@ export const getPayslipById = async (req, res) => {
     },
   });
 };
+
+export const getMyPayslips = async (req, res) => {
+  const employeeId = await getEmployeeIdByUserId(req.user.id);
+
+  if (!employeeId) {
+    return res.status(404).json({
+      message: "Employee record not found",
+    });
+  }
+
+  const payslipResult = await pool.query(
+    `SELECT
+       p.id,
+       pr.id AS run_id,
+       to_char(pr.period_start, 'YYYY-MM-DD') AS period_start,
+       to_char(pr.period_end, 'YYYY-MM-DD') AS period_end,
+       to_char(pr.pay_date, 'YYYY-MM-DD') AS pay_date,
+       p.gross_pay,
+       p.total_deductions,
+       p.net_pay
+     FROM payslip p
+     INNER JOIN payroll_run pr
+       ON p.payroll_run_id = pr.id
+     WHERE p.employee_id = $1
+       AND pr.status = 'completed'
+     ORDER BY pr.period_start DESC`,
+    [employeeId],
+  );
+
+  const payslips = payslipResult.rows.map((row) => ({
+    id: row.id,
+    runId: row.run_id,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    payDate: row.pay_date,
+    grossPay: Number(row.gross_pay),
+    totalDeductions: Number(row.total_deductions),
+    netPay: Number(row.net_pay),
+  }));
+
+  return res.status(200).json({
+    payslips,
+  });
+};
